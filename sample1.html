@@ -1,0 +1,115 @@
+
+<!doctype html><html lang=en><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Spelling + Meaning Game</title>
+<style>
+body{font-family:Arial,sans-serif;margin:0;padding:16px;background:linear-gradient(#f4f8fc,#dbe7ff);color:#123}h1{margin:0 0 6px;color:#2b6cb0;font-size:24px}.card{max-width:900px;margin:0 auto;background:rgba(255,255,255,.88);border-radius:14px;padding:16px 16px 18px;box-shadow:0 8px 24px rgba(0,0,0,.08)}.top{display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between;margin:10px 0}.pill{background:#eef3ff;border:1px solid #d8e3ff;border-radius:999px;padding:8px 12px;font-weight:700;color:#2b6cb0}.meaning{background:#f8fbff;border:1px solid #dbe7ff;border-radius:12px;padding:12px;margin:10px 0;font-size:18px;line-height:1.45;text-align:left}.row{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;align-items:center;margin-top:8px}button{border:0;border-radius:10px;padding:12px 16px;font-size:16px;cursor:pointer;color:#fff;background:#4e8ef7}button.secondary{background:#ff8c00}input{font-size:18px;padding:12px;width:min(420px,92vw);border-radius:10px;border:1px solid #cfd8ea}#fb{min-height:24px;font-weight:700;font-size:18px;margin-top:10px}.small{opacity:.85;font-size:14px;margin-top:8px}.grid{margin-top:14px;display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px}.chip{border-radius:10px;padding:10px;text-align:center;background:#edf2ff;border:1px solid #d8e3ff;font-weight:700;cursor:pointer;user-select:none}.chip.ok{background:#e9f8ee;border-color:#c9f0d3;color:#165}.chip.bad{background:#ffecef;border-color:#ffd0d8;color:#842}.chip.now{outline:3px solid rgba(43,108,176,.35)}
+#gate{position:fixed;inset:0;background:rgba(0,0,0,.72);color:#fff;display:flex;align-items:center;justify-content:center;padding:20px;z-index:9999}#gate .box{max-width:560px;width:100%;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);border-radius:14px;padding:18px;text-align:center}#gate button{background:#28a745;font-size:18px;padding:14px 22px}
+</style></head><body>
+<div id=gate><div class=box><h2>🔊 Enable Sound</h2><p>Tap once to enable speaking on iPad/Safari.</p><button id=en>Enable Sound</button><div style="margin-top:10px;font-size:13px;opacity:.9">Tip: Silent mode off + volume up.</div></div></div>
+<div class=card>
+<h1>Spelling + Meaning Game</h1>
+<div class=small>Read the meaning, tap “Say it”, then type the word. Wrong words come back again until correct. Tap any Word # to jump.</div>
+<div class=top><div class=pill id=prog>Word 1 / 26</div><div class=pill id=score>Score: 0 / 26 ✅</div><div class=pill id=redo>To redo: 0</div></div>
+<div class=meaning id=meaning></div>
+<div class=row><button id=say>🔊 Say it</button><button class="secondary" id=next>➡️ Next</button></div>
+<div class=row style="margin-top:12px"><input id=ans placeholder="Type the spelling here" autocomplete=off autocapitalize=off autocorrect=off spellcheck=false><button class="secondary" id=check>Check</button></div>
+<div id=fb></div>
+<div class=grid id=grid></div>
+</div>
+<script>
+const items=[
+{w:"parcel",d:"Parcel",m:"A package you send or receive in the mail."},
+{w:"statue",d:"Statue",m:"A sculpture of a person or animal, usually made of stone or metal."},
+{w:"native",d:"Native",m:"From a particular place; born there."},
+{w:"apply",d:"Apply",m:"To put on, or to make a formal request (like for a job)."},
+{w:"declare",d:"Declare",m:"To say something clearly and officially."},
+{w:"operate",d:"Operate",m:"To run or control a machine or system; to work."},
+{w:"request",d:"Request",m:"To ask for something politely or formally."},
+{w:"myth",d:"Myth",m:"A traditional story that may explain something, but is not proven true."},
+{w:"negative",d:"Negative",m:"Not positive; a word meaning ‘no’ or showing something is bad."},
+{w:"load",d:"Load",m:"To put a lot of things onto something; the amount carried."},
+{w:"risk",d:"Risk",m:"The chance that something bad could happen."},
+{w:"define",d:"Define",m:"To explain the exact meaning of a word or idea."},
+{w:"terrify",d:"Terrify",m:"To frighten someone very much."},
+{w:"stain",d:"Stain",m:"A mark that is difficult to remove."},
+{w:"bruise",d:"Bruise",m:"A purple/brown mark on skin after a bump."},
+{w:"unite",d:"Unite",m:"To join together as one."},
+{w:"panic",d:"Panic",m:"A sudden strong feeling of fear."},
+{w:"outfit",d:"Outfit",m:"A set of clothes worn together."},
+{w:"discount",d:"Discount",m:"A reduced price; money taken off the cost."},
+{w:"complaint",d:"Complaint",m:"A statement that something is wrong or unfair."},
+{w:"overhear",d:"Overhear",m:"To hear something by chance, without meaning to."},
+{w:"challenge",d:"Challenge",m:"Something difficult that tests you; to invite someone to try."},
+{w:"variable",d:"Variable",m:"Something that can change; in maths/code, a value that may vary."},
+{w:"but",d:"But",m:"A word used to show contrast (however)."},
+{w:"beware",d:"Beware",m:"Be careful; watch out for danger."},
+{w:"owe",d:"Owe",m:"To need to pay or give something back."}
+];
+let idx=0,score=0;const st=items.map(()=>"");
+let redoQ=[],redoS=new Set();
+const $=id=>document.getElementById(id);
+function resumeIOS(){try{speechSynthesis.cancel();speechSynthesis.resume()}catch(e){}}
+function loadVoices(cb){const done=()=>cb&&cb();const v=speechSynthesis.getVoices();if(v&&v.length)return done();speechSynthesis.onvoiceschanged=done;setTimeout(done,600)}
+function pickVoice(){const v=speechSynthesis.getVoices()||[];for(const tag of ["en-AU","en-GB","en-US"]) {const f=v.find(x=>(x.lang||"").startsWith(tag));if(f)return f;}return v[0]||null}
+function speak(t){const u=new SpeechSynthesisUtterance(t);const vc=pickVoice();if(vc)u.voice=vc;u.lang=vc&&vc.lang?vc.lang:"en-AU";u.rate=.95;u.pitch=1;speechSynthesis.cancel();speechSynthesis.speak(u)}
+function upd(){
+  $("prog").textContent=`Word ${idx+1} / ${items.length}`;
+  $("score").textContent=`Score: ${score} / ${items.length} ✅`;
+  $("redo").textContent=`To redo: ${redoQ.length}`;
+}
+function enq(i){if(st[i]==="ok")return; if(!redoS.has(i)){redoS.add(i);redoQ.push(i);}}
+function deq(i){if(!redoS.has(i))return; redoS.delete(i); redoQ=redoQ.filter(x=>x!==i);}
+function render(){
+  const g=$("grid"); g.innerHTML="";
+  items.forEach((_,i)=>{const d=document.createElement("div");
+    d.className="chip"+(st[i]?" "+st[i]:"")+(i===idx?" now":"");
+    d.textContent="Word "+(i+1);
+    d.onclick=()=>{idx=i;show();};
+    g.appendChild(d);
+  });
+}
+function show(){
+  $("meaning").textContent=items[idx].m;
+  $("fb").textContent="";
+  $("ans").value="";
+  $("ans").focus();
+  upd();
+  render();
+}
+function pickNext(){
+  if(redoQ.length){const n=redoQ.shift();redoS.delete(n);return n;}
+  for(let step=1;step<=items.length;step++){
+    const c=(idx+step)%items.length;
+    if(st[c]!=="ok")return c;
+  }
+  return idx;
+}
+function check(){
+  const input=$("ans").value.trim().toLowerCase();
+  if(!input){$("fb").textContent="Type your answer first.";$("fb").style.color="#123";return false;}
+  if(input===items[idx].w){
+    $("fb").textContent="✅ Correct!";$("fb").style.color="#165";
+    if(st[idx]!=="ok")score++;
+    st[idx]="ok"; deq(idx);
+    upd(); render();
+    return true;
+  } else {
+    $("fb").textContent="❌ Try again! (This one will come back later)";$("fb").style.color="#842";
+    if(st[idx]!=="ok")st[idx]="bad";
+    enq(idx);
+    upd(); render();
+    return false;
+  }
+}
+function next(){
+  if(score===items.length){$("fb").textContent="🎉 All correct! Great work.";$("fb").style.color="#165";return;}
+  idx=pickNext(); show();
+}
+$("say").onclick=()=>speak(items[idx].d);
+$("next").onclick=next;
+$("check").onclick=()=>{check(); next();};
+$("ans").addEventListener("keydown",e=>{if(e.key==="Enter"){check(); next();}});
+$("en").onclick=()=>{resumeIOS();loadVoices(()=>{});$("gate").style.display="none";};
+document.addEventListener("visibilitychange",()=>{if(!document.hidden){try{speechSynthesis.resume()}catch(e){}}});
+show();
+</script>
+</body></html>
