@@ -1,1 +1,307 @@
-sample
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Spelling + Meaning Game</title>
+<style>
+  :root {
+    --bg1: #f4f8fc;
+    --bg2: #dbe7ff;
+    --primary: #2b6cb0;
+    --btn: #4e8ef7;
+    --btn2: #ff8c00;
+    --ok: #28a745;
+    --bad: #dc3545;
+  }
+  body {
+    font-family: Arial, sans-serif;
+    background: linear-gradient(var(--bg1), var(--bg2));
+    margin: 0;
+    padding: 20px;
+    color: #123;
+  }
+  .card {
+    max-width: 820px;
+    margin: 0 auto;
+    background: rgba(255,255,255,0.86);
+    border-radius: 14px;
+    padding: 18px 18px 22px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+  }
+  h1 {
+    margin: 0 0 6px;
+    color: var(--primary);
+    font-size: 26px;
+  }
+  .sub {
+    margin: 0 0 14px;
+    opacity: 0.9;
+  }
+  .topbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 14px;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .pill {
+    background: #eef3ff;
+    border: 1px solid #d8e3ff;
+    border-radius: 999px;
+    padding: 8px 12px;
+    font-weight: bold;
+    color: var(--primary);
+  }
+  .meaning {
+    text-align: left;
+    background: #f8fbff;
+    border: 1px solid #dbe7ff;
+    border-radius: 12px;
+    padding: 14px;
+    margin: 12px 0 12px;
+    line-height: 1.45;
+    font-size: 18px;
+  }
+  .row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    justify-content: center;
+    margin-top: 10px;
+  }
+  button {
+    border: none;
+    border-radius: 10px;
+    padding: 12px 16px;
+    font-size: 16px;
+    cursor: pointer;
+    color: #fff;
+    background: var(--btn);
+  }
+  button.secondary { background: var(--btn2); }
+  button:disabled { opacity: 0.55; cursor: not-allowed; }
+  input {
+    font-size: 18px;
+    padding: 12px 12px;
+    width: min(420px, 92vw);
+    border-radius: 10px;
+    border: 1px solid #cfd8ea;
+  }
+  #feedback {
+    margin-top: 12px;
+    font-weight: bold;
+    font-size: 18px;
+    min-height: 24px;
+  }
+  .small { margin-top: 10px; opacity: 0.85; font-size: 14px; }
+  .list {
+    margin-top: 16px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 8px;
+  }
+  .chip {
+    border-radius: 10px;
+    padding: 10px 10px;
+    text-align: center;
+    background: #edf2ff;
+    border: 1px solid #d8e3ff;
+    color: #234;
+    font-weight: 700;
+  }
+  .chip.ok { background: #e9f8ee; border-color: #c9f0d3; color: #165; }
+  .chip.bad { background: #ffecef; border-color: #ffd0d8; color: #842; }
+  #gate {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.72);
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    z-index: 9999;
+  }
+  #gate .box {
+    max-width: 540px;
+    width: 100%;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.18);
+    border-radius: 14px;
+    padding: 18px;
+    text-align: center;
+  }
+  #gate h2 { margin: 0 0 10px; }
+  #gate p { margin: 0 0 14px; opacity: 0.95; }
+  #gate button { background: var(--ok); font-size: 18px; padding: 14px 22px; }
+  #hint { margin-top: 10px; font-size: 13px; opacity: 0.9; }
+</style>
+</head>
+<body>
+
+<div id="gate">
+  <div class="box">
+    <h2>🔊 Enable Sound</h2>
+    <p>Tap once to enable speaking on iPad/Safari, then start the game.</p>
+    <button id="enableBtn">Enable Sound</button>
+    <div id="hint">Tip: make sure Silent mode is off and volume is up.</div>
+  </div>
+</div>
+
+<div class="card">
+  <h1>Spelling + Meaning Game</h1>
+  <p class="sub">Read the meaning, tap “Say it”, then type the word. The answers are not shown.</p>
+
+  <div class="topbar">
+    <div class="pill" id="progress">Word 1 / 26</div>
+    <div class="pill" id="score">Score: 0 / 26 ✅</div>
+  </div>
+
+  <div class="meaning" id="meaning"></div>
+
+  <div class="row">
+    <button id="sayBtn">🔊 Say it</button>
+    <button class="secondary" id="nextBtn">➡️ Next</button>
+  </div>
+
+  <div class="row" style="margin-top: 14px;">
+    <input id="answer" type="text" placeholder="Type the spelling here"
+      autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" />
+    <button class="secondary" id="checkBtn">Check</button>
+  </div>
+
+  <div id="feedback"></div>
+  <div class="small">Tip: Press Enter to check. “Next” moves to another meaning.</div>
+
+  <div class="list" id="statusList"></div>
+</div>
+
+<script>
+const items = [{"w": "parcel", "display": "Parcel", "meaning": "A package you send or receive in the mail."}, {"w": "statue", "display": "Statue", "meaning": "A sculpture of a person or animal, usually made of stone or metal."}, {"w": "native", "display": "Native", "meaning": "From a particular place; born there."}, {"w": "apply", "display": "Apply", "meaning": "To put on, or to make a formal request (like for a job)."}, {"w": "declare", "display": "Declare", "meaning": "To say something clearly and officially."}, {"w": "operate", "display": "Operate", "meaning": "To run or control a machine or system; to work."}, {"w": "request", "display": "Request", "meaning": "To ask for something politely or formally."}, {"w": "myth", "display": "Myth", "meaning": "A traditional story that may explain something, but is not proven true."}, {"w": "negative", "display": "Negative", "meaning": "Not positive; a word meaning “no” or showing something is bad."}, {"w": "load", "display": "Load", "meaning": "To put a lot of things onto something; the amount carried."}, {"w": "risk", "display": "Risk", "meaning": "The chance that something bad could happen."}, {"w": "define", "display": "Define", "meaning": "To explain the exact meaning of a word or idea."}, {"w": "terrify", "display": "Terrify", "meaning": "To frighten someone very much."}, {"w": "stain", "display": "Stain", "meaning": "A mark that is difficult to remove."}, {"w": "bruise", "display": "Bruise", "meaning": "A purple/brown mark on skin after a bump."}, {"w": "unite", "display": "Unite", "meaning": "To join together as one."}, {"w": "panic", "display": "Panic", "meaning": "A sudden strong feeling of fear."}, {"w": "outfit", "display": "Outfit", "meaning": "A set of clothes worn together."}, {"w": "discount", "display": "Discount", "meaning": "A reduced price; money taken off the cost."}, {"w": "complaint", "display": "Complaint", "meaning": "A statement that something is wrong or unfair."}, {"w": "overhear", "display": "Overhear", "meaning": "To hear something by chance, without meaning to."}, {"w": "challenge", "display": "Challenge", "meaning": "Something difficult that tests you; to invite someone to try."}, {"w": "variable", "display": "Variable", "meaning": "Something that can change; in maths/code, a value that may vary."}, {"w": "but", "display": "But", "meaning": "A word used to show contrast (however)."}, {"w": "beware", "display": "Beware", "meaning": "Be careful; watch out for danger."}, {"w": "owe", "display": "Owe", "meaning": "To need to pay or give something back."}];
+
+let idx = 0;
+let score = 0;
+const status = items.map(() => ""); // "", "ok", "bad"
+
+function resumeIOS() {
+  try {
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.resume();
+  } catch (e) {}
+}
+
+function loadVoices(cb) {
+  const done = () => { if (cb) cb(); };
+  const v = speechSynthesis.getVoices();
+  if (v && v.length) return done();
+  speechSynthesis.onvoiceschanged = done;
+  setTimeout(done, 600);
+}
+
+function pickVoice() {
+  const voices = speechSynthesis.getVoices() || [];
+  const prefer = ["en-AU","en-GB","en-US"];
+  for (const tag of prefer) {
+    const found = voices.find(v => (v.lang || "").startsWith(tag));
+    if (found) return found;
+  }
+  return voices[0] || null;
+}
+
+function speak(text) {
+  const utter = new SpeechSynthesisUtterance(text);
+  const voice = pickVoice();
+  if (voice) utter.voice = voice;
+  utter.lang = (voice && voice.lang) ? voice.lang : "en-AU";
+  utter.rate = 0.95;
+  utter.pitch = 1.0;
+  speechSynthesis.cancel();
+  speechSynthesis.speak(utter);
+}
+
+function renderStatus() {
+  const list = document.getElementById("statusList");
+  list.innerHTML = "";
+  items.forEach((it, i) => {
+    const d = document.createElement("div");
+    d.className = "chip" + (status[i] ? (" " + status[i]) : "");
+    d.textContent = "Word " + (i + 1);
+    list.appendChild(d);
+  });
+}
+
+function updateHeader() {
+  document.getElementById("progress").textContent = `Word ${idx + 1} / ${items.length}`;
+  document.getElementById("score").textContent = `Score: ${score} / ${items.length} ✅`;
+}
+
+function showItem() {
+  document.getElementById("meaning").textContent = items[idx].meaning;
+  document.getElementById("feedback").textContent = "";
+  const ans = document.getElementById("answer");
+  ans.value = "";
+  ans.focus();
+  updateHeader();
+  renderStatus();
+}
+
+function check() {
+  const input = document.getElementById("answer").value.trim().toLowerCase();
+  const target = items[idx].w;
+  const fb = document.getElementById("feedback");
+
+  if (!input) {
+    fb.textContent = "Type your answer first.";
+    fb.style.color = "#123";
+    return;
+  }
+
+  if (input === target) {
+    fb.textContent = "✅ Correct!";
+    fb.style.color = "#165";
+    if (status[idx] !== "ok") score += 1; // award once per word
+    status[idx] = "ok";
+  } else {
+    fb.textContent = "❌ Try again!";
+    fb.style.color = "#842";
+    if (status[idx] !== "ok") status[idx] = "bad";
+  }
+  updateHeader();
+  renderStatus();
+}
+
+function next() {
+  idx = (idx + 1) % items.length;
+  showItem();
+}
+
+document.getElementById("sayBtn").addEventListener("click", () => {
+  speak(items[idx].display);
+});
+document.getElementById("nextBtn").addEventListener("click", next);
+document.getElementById("checkBtn").addEventListener("click", check);
+document.getElementById("answer").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") check();
+});
+
+document.getElementById("enableBtn").addEventListener("click", () => {
+  resumeIOS();
+  loadVoices(() => {});
+  document.getElementById("gate").style.display = "none";
+});
+
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) {
+    try { speechSynthesis.resume(); } catch(e) {}
+  }
+});
+
+showItem();
+</script>
+
+</body>
+</html>
